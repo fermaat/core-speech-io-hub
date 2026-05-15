@@ -1,39 +1,61 @@
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
 [project]
-name = "package-name"
+name = "speech-io-hub"
 version = "0.1.0"
-description = "Minimal Python package template"
+description = "STT/TTS service for the Fante project"
 readme = "README.md"
 requires-python = "==3.12.*"
+authors = [
+    {name = "Fernando Velasco", email = "fermaat.vl@gmail.com"},
+]
+license = {text = "MIT"}
 dependencies = [
-    "httpx>=0.25",
-    "pyyaml>=6.0.3",
-    "loguru>=0.7",
+    "core-utils @ git+https://github.com/fermaat/core-utils.git",
+    "fastapi>=0.115",
+    "uvicorn>=0.32",
     "pydantic>=2.0",
-    "pydantic-settings>=2.0",
+    "httpx>=0.27",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=9.0",
+    "pytest>=7.0",
     "pytest-cov>=4.0",
     "pytest-asyncio>=0.21",
     "black>=23.0",
     "ruff>=0.1",
     "mypy>=1.0",
     "isort>=5.12",
-    "types-PyYAML>=6.0",
 ]
 
 [tool.pdm]
 distribution = true
 
+[tool.pdm.build]
+includes = ["src/speech_io_hub"]
+
+[tool.pdm.dev-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "pytest-asyncio>=0.21",
+    "black>=23.0",
+    "ruff>=0.1",
+    "mypy>=1.0",
+    "isort>=5.12",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
-addopts = "--strict-markers -v --cov=src --cov-report=term-missing --cov-report=html"
+addopts = "--strict-markers -v"
 asyncio_mode = "auto"
 markers = [
     "unit: unit tests",
+    "functional: functional / HTTP-via-TestClient tests",
     "integration: integration tests",
 ]
 
@@ -58,7 +80,9 @@ disallow_untyped_defs = false
 disallow_incomplete_defs = false
 
 [[tool.mypy.overrides]]
-module = "yaml.*"
+module = [
+    "core_utils.*",
+]
 ignore_missing_imports = true
 
 [tool.black]
@@ -78,18 +102,24 @@ extend-exclude = '''
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-exclude = [".git", "__pycache__", "build", "dist", ".venv"]
+exclude = [
+    ".git",
+    "__pycache__",
+    "build",
+    "dist",
+    ".venv",
+]
 
 [tool.ruff.lint]
 extend-select = ["E", "W", "F", "I", "C4", "B", "UP", "SIM"]
 ignore = ["E501", "E203"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["package_name"]
+known-first-party = ["speech_io_hub", "core_utils"]
 
 [tool.coverage.run]
-source = ["src"]
-omit = ["*/tests/*", "*/test_*.py"]
+source = ["src/speech_io_hub"]
+omit = ["*/tests/*", "*/test_*.py", "*/__main__.py"]
 
 [tool.coverage.report]
 exclude_lines = [

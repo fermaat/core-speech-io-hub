@@ -30,6 +30,7 @@ htmlcov/
 .ruff_cache/
 
 # Logs
+logs/
 logs/*.log
 
 # Environment

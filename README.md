@@ -1,15 +1,32 @@
-# Python Package Template
+# speech-io-hub
 
-A lightweight template for new Python projects.
+STT/TTS abstraction service for the [Fante](https://github.com/fermaat/fante-game-orchestrator)
+project. Mirrors `core-llm-bridge`'s ports-and-adapters shape, but for voice I/O.
 
-Use this template when you want to get started quickly with:
-- `pyproject.toml`
-- `src/` layout + initial package
-- `src/` style checks
-- Basic CI with `ruff`, `black`, and `mypy`
+Runs as a long-lived HTTP process so models stay loaded in memory across sessions
+and can be swapped at runtime.
 
-Quick start:
-1. Copy all contents from `template/` into your new repo.
-2. Rename `src/package_name` to your package name.
-3. Update `pyproject.toml` with your name, author, and dependencies.
-4. Optional: remove `tests/` if you don't need tests.
+## Install
+
+```bash
+pdm install --dev
+```
+
+## Run locally
+
+```bash
+pdm run python -m speech_io_hub       # starts service on 127.0.0.1:8500
+curl http://127.0.0.1:8500/health     # → {"status": "ok"}
+```
+
+## Checks
+
+```bash
+./run_local_checks.sh
+```
+
+## Phase
+
+Currently **Phase 3.0** — scaffold only. No real STT/TTS engines yet.
+- Phase 3.1 will add Whisper STT
+- Phase 3.2 will add Piper/System TTS
