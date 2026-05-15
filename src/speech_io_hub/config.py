@@ -14,9 +14,19 @@ class SpeechSettings(CoreSettings):
     speech_host: str = "127.0.0.1"
     speech_port: int = 8500
 
-    # Provider selection (filled in for real providers in 3.1 and 3.2)
-    speech_stt_provider: str = "mock"  # "mock" | "whisper" (in 3.1)
-    speech_tts_provider: str = "mock"  # "mock" | "piper" | "system" (in 3.2)
+    speech_stt_provider: str = "mock"
+    speech_tts_provider: str = "mock"
+
+    # Whisper
+    speech_whisper_default_model: str = "base"
+    speech_whisper_device: str = "auto"
+    speech_whisper_compute_type: str = "auto"
+    speech_whisper_default_language: str = "es"
+
+    # VAD / capture
+    speech_vad_silence_ms: int = 800
+    speech_vad_max_duration_s: float = 30.0
+    speech_vad_min_speech_ms: int = 250
 
 
 __all__ = ["SpeechSettings"]

@@ -2,6 +2,7 @@
 
 import os
 from pathlib import Path
+from typing import Generator
 
 import pytest
 from fastapi.testclient import TestClient
@@ -20,3 +21,13 @@ def project_root() -> Path:
 @pytest.fixture(scope="session")
 def test_client() -> TestClient:
     return TestClient(create_app())
+
+
+@pytest.fixture
+def reset_registry() -> Generator[None, None, None]:
+    """Clear the model registry before and after each test that requests this fixture."""
+    import speech_io_hub.registry as reg
+
+    reg._clear_all()
+    yield
+    reg._clear_all()
