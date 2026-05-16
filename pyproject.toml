@@ -4,7 +4,7 @@ build-backend = "pdm.backend"
 
 [project]
 name = "speech-io-hub"
-version = "0.3.1"
+version = "0.3.2"
 description = "STT/TTS service for the Fante project"
 readme = "README.md"
 requires-python = "==3.12.*"
