@@ -1,10 +1,10 @@
-"""Endpoints for loading, listing, and unloading models."""
+"""Endpoints for loading, listing, and unloading STT models."""
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
 
 from speech_io_hub.providers.whisper import load_whisper_model
-from speech_io_hub.registry import ModelEntry, list_all, register, unregister
+from speech_io_hub.registry import Entry, list_by_type, register, unregister
 
 
 class LoadRequest(BaseModel):
@@ -24,7 +24,7 @@ def list_models() -> dict:  # type: ignore[type-arg]
     return {
         "loaded": [
             {"id": e.id, "type": e.type, "source": e.source, "metadata": e.metadata}
-            for e in list_all()
+            for e in list_by_type("whisper")
         ],
     }
 
@@ -43,7 +43,7 @@ def load_model(body: LoadRequest) -> dict:  # type: ignore[type-arg]
     except Exception as exc:
         raise HTTPException(500, f"Failed to load model: {exc}") from exc
     register(
-        ModelEntry(id=body.id, type=body.type, instance=instance, source=body.source),
+        Entry(id=body.id, type=body.type, instance=instance, source=body.source),
         as_default=body.as_default,
     )
     return {"id": body.id, "status": "loaded"}

@@ -1,4 +1,8 @@
-"""Loaded STT/TTS models, keyed by id. Threadsafe via a single lock."""
+"""Loaded artifacts (STT models, TTS voices) keyed by id.
+
+Defaults are tracked per type so the STT default does not collide with the TTS default.
+Threadsafe via a single lock.
+"""
 
 import threading
 from dataclasses import dataclass, field
@@ -6,55 +10,72 @@ from typing import Any
 
 
 @dataclass
-class ModelEntry:
+class Entry:
     id: str
-    type: str
+    type: str  # "whisper" | "piper" | "system" | ...
     instance: Any
     source: str
     metadata: dict[str, str] = field(default_factory=dict)
 
 
 _lock = threading.Lock()
-_models: dict[str, ModelEntry] = {}
-_default_id: str | None = None
+_entries: dict[str, Entry] = {}
+_defaults: dict[str, str] = {}  # type -> entry_id
 
 
-def register(entry: ModelEntry, as_default: bool = False) -> None:
-    global _default_id
+def register(entry: Entry, as_default: bool = False) -> None:
     with _lock:
-        _models[entry.id] = entry
-        if as_default or _default_id is None:
-            _default_id = entry.id
+        _entries[entry.id] = entry
+        if as_default or entry.type not in _defaults:
+            _defaults[entry.type] = entry.id
 
 
-def unregister(model_id: str) -> None:
-    global _default_id
+def unregister(entry_id: str) -> None:
     with _lock:
-        _models.pop(model_id, None)
-        if _default_id == model_id:
-            _default_id = next(iter(_models), None)
+        entry = _entries.pop(entry_id, None)
+        if entry and _defaults.get(entry.type) == entry_id:
+            successor = next(
+                (e.id for e in _entries.values() if e.type == entry.type),
+                None,
+            )
+            if successor is not None:
+                _defaults[entry.type] = successor
+            else:
+                _defaults.pop(entry.type, None)
 
 
-def get(model_id: str | None = None) -> ModelEntry:
+def get(entry_id: str | None = None, type: str | None = None) -> Entry:
+    """Look up an entry by id, or by type default if no id given."""
     with _lock:
-        key = model_id or _default_id
-        if key is None or key not in _models:
-            raise KeyError(f"No such model: {model_id!r} (default={_default_id!r})")
-        return _models[key]
+        if entry_id is not None:
+            if entry_id not in _entries:
+                raise KeyError(f"No such entry: {entry_id!r}")
+            return _entries[entry_id]
+        if type is None:
+            raise ValueError("Must specify entry_id or type")
+        default = _defaults.get(type)
+        if default is None or default not in _entries:
+            raise KeyError(f"No default entry for type {type!r}")
+        return _entries[default]
 
 
-def list_all() -> list[ModelEntry]:
+def list_all() -> list[Entry]:
     with _lock:
-        return list(_models.values())
+        return list(_entries.values())
 
 
-def default_id() -> str | None:
-    return _default_id
+def list_by_type(type: str) -> list[Entry]:
+    with _lock:
+        return [e for e in _entries.values() if e.type == type]
+
+
+def default_id(type: str) -> str | None:
+    with _lock:
+        return _defaults.get(type)
 
 
 def _clear_all() -> None:
     """Reset registry state. For use in tests only."""
-    global _default_id
     with _lock:
-        _models.clear()
-        _default_id = None
+        _entries.clear()
+        _defaults.clear()

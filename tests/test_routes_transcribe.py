@@ -53,7 +53,7 @@ def test_transcribe_returns_text(
 
 
 @pytest.mark.functional
-def test_transcribe_no_model_loaded_returns_404(
+def test_transcribe_no_model_loaded_returns_503(
     test_client: TestClient, reset_registry: None
 ) -> None:
     wav = _make_wav()
@@ -61,4 +61,4 @@ def test_transcribe_no_model_loaded_returns_404(
         "/transcribe",
         files={"audio": ("test.wav", wav, "audio/wav")},
     )
-    assert response.status_code == 404
+    assert response.status_code == 503

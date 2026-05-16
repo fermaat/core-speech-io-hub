@@ -23,7 +23,7 @@ class WhisperSTTProvider:
         initial_prompt: str | None = None,
         model: str | None = None,
     ) -> TranscriptionResult:
-        entry = get(model)
+        entry = get(model, type="whisper")
         wm: WhisperModel = entry.instance
 
         pcm, sr = wav_to_pcm(audio)

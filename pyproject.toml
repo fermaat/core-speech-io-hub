@@ -4,7 +4,7 @@ build-backend = "pdm.backend"
 
 [project]
 name = "speech-io-hub"
-version = "0.2.0"
+version = "0.3.1"
 description = "STT/TTS service for the Fante project"
 readme = "README.md"
 requires-python = "==3.12.*"
@@ -23,6 +23,7 @@ dependencies = [
     "silero-vad>=5.1",
     "numpy>=2.0",
     "python-multipart>=0.0.9",
+    "piper-tts>=1.2",
 ]
 
 [project.optional-dependencies]
@@ -90,6 +91,7 @@ module = [
     "faster_whisper.*",
     "sounddevice.*",
     "silero_vad.*",
+    "piper.*",
 ]
 ignore_missing_imports = true
 

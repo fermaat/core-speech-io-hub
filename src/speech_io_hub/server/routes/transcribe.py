@@ -25,7 +25,9 @@ async def transcribe(
             model=model,
         )
     except KeyError as exc:
-        raise HTTPException(404, str(exc)) from exc
+        raise HTTPException(
+            503, f"No STT model loaded: {exc}. Start the server with SPEECH_STT_PROVIDER=whisper."
+        ) from exc
     except Exception as exc:
         raise HTTPException(500, f"Transcription failed: {exc}") from exc
     return result.model_dump()

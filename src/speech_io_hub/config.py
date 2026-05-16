@@ -28,5 +28,11 @@ class SpeechSettings(CoreSettings):
     speech_vad_max_duration_s: float = 30.0
     speech_vad_min_speech_ms: int = 250
 
+    # TTS — Piper
+    speech_piper_default_voice_path: str = ""  # empty → no Piper voice auto-loaded
+
+    # TTS — System (macOS)
+    speech_system_default_voice: str = "Mónica"  # any name from `say -v ?`
+
 
 __all__ = ["SpeechSettings"]
