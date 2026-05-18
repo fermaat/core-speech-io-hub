@@ -1,6 +1,10 @@
 """Loaded artifacts (STT models, TTS voices) keyed by id.
 
 Defaults are tracked per type so the STT default does not collide with the TTS default.
+A second mapping tracks the default per "category" ("stt" / "tts") to support
+hot-swap across compatible types — e.g. flipping the active TTS voice from Piper to
+the system voice with ``as_default=True``.
+
 Threadsafe via a single lock.
 """
 
@@ -18,9 +22,17 @@ class Entry:
     metadata: dict[str, str] = field(default_factory=dict)
 
 
+_CATEGORY_FOR_TYPE: dict[str, str] = {
+    "whisper": "stt",
+    "piper": "tts",
+    "system": "tts",
+}
+
+
 _lock = threading.Lock()
 _entries: dict[str, Entry] = {}
 _defaults: dict[str, str] = {}  # type -> entry_id
+_category_defaults: dict[str, str] = {}  # category ("stt"/"tts") -> entry_id
 
 
 def register(entry: Entry, as_default: bool = False) -> None:
@@ -28,12 +40,17 @@ def register(entry: Entry, as_default: bool = False) -> None:
         _entries[entry.id] = entry
         if as_default or entry.type not in _defaults:
             _defaults[entry.type] = entry.id
+        category = _CATEGORY_FOR_TYPE.get(entry.type)
+        if category is not None and (as_default or category not in _category_defaults):
+            _category_defaults[category] = entry.id
 
 
 def unregister(entry_id: str) -> None:
     with _lock:
         entry = _entries.pop(entry_id, None)
-        if entry and _defaults.get(entry.type) == entry_id:
+        if entry is None:
+            return
+        if _defaults.get(entry.type) == entry_id:
             successor = next(
                 (e.id for e in _entries.values() if e.type == entry.type),
                 None,
@@ -42,6 +59,17 @@ def unregister(entry_id: str) -> None:
                 _defaults[entry.type] = successor
             else:
                 _defaults.pop(entry.type, None)
+        category = _CATEGORY_FOR_TYPE.get(entry.type)
+        if category is not None and _category_defaults.get(category) == entry_id:
+            # Promote any remaining entry whose type maps to the same category.
+            successor = next(
+                (e.id for e in _entries.values() if _CATEGORY_FOR_TYPE.get(e.type) == category),
+                None,
+            )
+            if successor is not None:
+                _category_defaults[category] = successor
+            else:
+                _category_defaults.pop(category, None)
 
 
 def get(entry_id: str | None = None, type: str | None = None) -> Entry:
@@ -74,8 +102,15 @@ def default_id(type: str) -> str | None:
         return _defaults.get(type)
 
 
+def default_id_for_category(category: str) -> str | None:
+    """Return the default entry id for a category ("stt" / "tts"), if any."""
+    with _lock:
+        return _category_defaults.get(category)
+
+
 def _clear_all() -> None:
     """Reset registry state. For use in tests only."""
     with _lock:
         _entries.clear()
         _defaults.clear()
+        _category_defaults.clear()

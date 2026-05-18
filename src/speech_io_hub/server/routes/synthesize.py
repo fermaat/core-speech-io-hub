@@ -6,14 +6,14 @@ from pydantic import BaseModel
 
 from speech_io_hub.providers import piper as piper_mod
 from speech_io_hub.providers import system as system_mod
-from speech_io_hub.registry import Entry, get
+from speech_io_hub.registry import Entry, default_id_for_category, get
 
 router = APIRouter(tags=["tts"])
 
 
 class SynthesizeRequest(BaseModel):
     text: str
-    voice: str | None = None  # voice id; None → prefer piper default, then system
+    voice: str | None = None  # voice id; None → most recently set TTS default
 
 
 def _resolve_voice(voice_id: str | None) -> Entry:
@@ -22,12 +22,10 @@ def _resolve_voice(voice_id: str | None) -> Entry:
             return get(voice_id)
         except KeyError as exc:
             raise HTTPException(404, str(exc)) from exc
-    for type_ in ("piper", "system"):
-        try:
-            return get(type=type_)
-        except KeyError:
-            continue
-    raise HTTPException(404, "No TTS voice loaded")
+    default = default_id_for_category("tts")
+    if default is None:
+        raise HTTPException(404, "No TTS voice loaded")
+    return get(default)
 
 
 @router.post("/synthesize")

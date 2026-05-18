@@ -26,13 +26,17 @@ src/speech_io_hub/
 │   └── models.py            # TranscriptionResult, SynthesisResult (Pydantic)
 ├── providers/
 │   ├── mock.py              # MockSTT, MockTTS — deterministic, no model required
-│   └── whisper.py           # WhisperSTTProvider (faster-whisper) + load_whisper_model
+│   ├── whisper.py           # WhisperSTTProvider (faster-whisper) + load_whisper_model
+│   ├── piper.py             # PiperTTSProvider + load_piper_voice + synthesize_with_entry
+│   └── system.py            # SystemTTSProvider (macOS `say`) + synthesize_with_entry
 ├── server/
 │   ├── app.py               # FastAPI factory; wires routers, bootstraps default model
 │   └── routes/
 │       ├── health.py        # GET /health
 │       ├── transcribe.py    # POST /transcribe (multipart WAV upload)
-│       └── models.py        # GET /models, POST /models/load, DELETE /models/{id}
+│       ├── models.py        # GET /models, POST /models/load, DELETE /models/{id}
+│       ├── voices.py        # GET /voices, POST /voices/load, DELETE /voices/{id}
+│       └── synthesize.py    # POST /synthesize (text → WAV bytes)
 └── client/
     └── client.py            # SpeechClient — httpx-based client for Fante
 ```
@@ -45,11 +49,16 @@ src/speech_io_hub/
 |---|---|---|
 | `SpeechSettings` | `config.py` | All config (host, port, provider, Whisper/VAD params). Reads from `.env` / env vars. |
 | `STTProvider` | `core/base.py` | Protocol: `transcribe(audio, language, initial_prompt, model) -> TranscriptionResult` |
+| `TTSProvider` | `core/base.py` | Protocol: `synthesize(text, voice) -> SynthesisResult` |
 | `TranscriptionResult` | `core/models.py` | Pydantic model: `text`, `language`, `confidence`, `duration_seconds`, `model` |
-| `ModelEntry` | `registry.py` | Dataclass holding a loaded model instance, its id, type, and source path |
-| `register / get / unregister` | `registry.py` | Thread-safe registry CRUD; `get(None)` returns the default model |
+| `SynthesisResult` | `core/models.py` | Pydantic model: `audio` (WAV bytes), `sample_rate`, `duration_seconds`, `voice` |
+| `Entry` | `registry.py` | Dataclass holding a loaded artifact instance, its id, type, source and metadata |
+| `register / get / unregister` | `registry.py` | Thread-safe registry CRUD; per-type and per-category defaults |
+| `default_id / default_id_for_category` | `registry.py` | Per-type and per-category ("stt" / "tts") default lookup |
 | `WhisperSTTProvider` | `providers/whisper.py` | Fetches model from registry, calls faster-whisper, returns `TranscriptionResult` |
 | `load_whisper_model` | `providers/whisper.py` | Instantiates a `WhisperModel`; `source` = canonical name or filesystem path |
+| `PiperTTSProvider` / `load_piper_voice` | `providers/piper.py` | Piper ONNX voice loader + per-entry synth |
+| `SystemTTSProvider` | `providers/system.py` | macOS `say`-based fallback voice |
 | `wav_to_pcm / pcm_to_wav` | `audio/wav.py` | WAV ↔ mono float32 numpy array (handles multi-channel + 16/32-bit) |
 | `record_until_silence` | `audio/vad.py` | Streams mic frames, runs silero-vad, stops on silence; returns WAV bytes |
 | `SpeechClient` | `client/client.py` | httpx client: `.health()`, `.transcribe()`, `.list_models()`, `.load_model()`, `.unload_model()` |
@@ -82,9 +91,13 @@ result = client.transcribe(wav_bytes, language="es", initial_prompt="trepar, sal
 |---|---|---|
 | `GET` | `/health` | Returns `{"status": "ok"}` |
 | `POST` | `/transcribe` | multipart: `audio` (WAV file), `language?`, `initial_prompt?`, `model?` |
-| `GET` | `/models` | List loaded models |
+| `GET` | `/models` | List loaded STT models |
 | `POST` | `/models/load` | Load a Whisper model by canonical name or path |
 | `DELETE` | `/models/{id}` | Unload a model from registry |
+| `POST` | `/synthesize` | JSON: `text`, optional `voice` id — returns WAV. Defaults to the most recently set TTS default |
+| `GET` | `/voices` | List loaded TTS voices |
+| `POST` | `/voices/load` | Load a Piper (`.onnx`) or system (macOS) voice; `as_default` flips the active TTS voice |
+| `DELETE` | `/voices/{id}` | Unload a TTS voice |
 
 ---
 
@@ -130,7 +143,7 @@ Dev: `pytest`, `black`, `mypy`, `ruff`, `isort`, `pytest-cov`, `pytest-asyncio`
 |---|---|---|
 | 3.0 | ✅ Done | Protocols, MockSTT/TTS, FastAPI + `/health`, SpeechClient |
 | 3.1 | ✅ Done | Whisper STT, VAD mic capture, model registry, HTTP model management |
-| 3.2 | 🔜 Pending | TTS: Piper + system voice |
+| 3.2 | ✅ Done | TTS: Piper + system voice, `/synthesize`, `/voices*`, category-level default with hot-swap |
 | 3.3+ | 🔜 Pending | Fine-tuned model loading, streaming transcription |
 
 ---

@@ -2,7 +2,15 @@
 
 import pytest
 
-from speech_io_hub.registry import Entry, default_id, get, list_all, register, unregister
+from speech_io_hub.registry import (
+    Entry,
+    default_id,
+    default_id_for_category,
+    get,
+    list_all,
+    register,
+    unregister,
+)
 
 
 @pytest.mark.unit
@@ -75,3 +83,49 @@ def test_per_type_defaults_are_independent(reset_registry: None) -> None:
     unregister("w")
     assert default_id("whisper") is None
     assert default_id("piper") == "p"
+
+
+@pytest.mark.unit
+def test_category_default_tracks_first_registered(reset_registry: None) -> None:
+    register(Entry(id="p1", type="piper", instance=object(), source="/v.onnx"))
+    assert default_id_for_category("tts") == "p1"
+    # Second TTS voice without as_default → category default unchanged.
+    register(Entry(id="s1", type="system", instance=object(), source="Mónica"))
+    assert default_id_for_category("tts") == "p1"
+
+
+@pytest.mark.unit
+def test_category_default_hot_swap_with_as_default(reset_registry: None) -> None:
+    register(
+        Entry(id="p1", type="piper", instance=object(), source="/v.onnx"),
+        as_default=True,
+    )
+    assert default_id_for_category("tts") == "p1"
+    register(
+        Entry(id="s1", type="system", instance=object(), source="Mónica"),
+        as_default=True,
+    )
+    # Category default swapped across types.
+    assert default_id_for_category("tts") == "s1"
+    # Per-type defaults preserved independently.
+    assert default_id("piper") == "p1"
+    assert default_id("system") == "s1"
+
+
+@pytest.mark.unit
+def test_category_default_promotes_after_unregister(reset_registry: None) -> None:
+    register(Entry(id="p1", type="piper", instance=object(), source="/v.onnx"))
+    register(Entry(id="s1", type="system", instance=object(), source="Mónica"))
+    assert default_id_for_category("tts") == "p1"
+    unregister("p1")
+    # The remaining TTS entry (different type) takes over the category default.
+    assert default_id_for_category("tts") == "s1"
+    unregister("s1")
+    assert default_id_for_category("tts") is None
+
+
+@pytest.mark.unit
+def test_category_default_for_stt(reset_registry: None) -> None:
+    register(Entry(id="w", type="whisper", instance=object(), source="base"))
+    assert default_id_for_category("stt") == "w"
+    assert default_id_for_category("tts") is None
